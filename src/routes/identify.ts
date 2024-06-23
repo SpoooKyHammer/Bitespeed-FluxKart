@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { Contact } from "@prisma/client";
+import { Contact, PrismaClient } from "@prisma/client";
 
 import { prismaClient } from "./../db";
 import { parseRespone } from "./../utils/parse-response";
@@ -15,6 +15,7 @@ export const identifyRouter = Router();
 identifyRouter.post("/identify", async (req: Request, res: Response) => {
 
   const requestBody: RequestBody = req.body;
+  requestBody.phoneNumber = String(requestBody.phoneNumber);
   
   if (!requestBody.phoneNumber && !requestBody.email) {
     return res.status(400).json({
@@ -22,11 +23,12 @@ identifyRouter.post("/identify", async (req: Request, res: Response) => {
     });
   }
 
+
   let contactRecord = await prismaClient.contact.findFirst({
     where: {
       OR: [
-        { email: requestBody.email, phoneNumber: String(requestBody.phoneNumber) },
-        { phoneNumber: String(requestBody.phoneNumber) },
+        { email: requestBody.email, phoneNumber: requestBody.phoneNumber },
+        { phoneNumber: requestBody.phoneNumber },
         { email: requestBody.email }
       ]
     }
@@ -34,7 +36,14 @@ identifyRouter.post("/identify", async (req: Request, res: Response) => {
 
   if (contactRecord) {
     let contactRecords: Contact[] = [];
-    
+   
+    if (
+      (requestBody.email && requestBody.phoneNumber) && 
+      (contactRecord.email !== requestBody.email || contactRecord.phoneNumber !== requestBody.phoneNumber)
+    ) {
+      await createSecondaryContact(prismaClient, contactRecord, requestBody.email, requestBody.phoneNumber);
+    }
+
     if (contactRecord.linkPrecedence === "PRIMARY") {
       contactRecords.push(contactRecord);
       let secondaryContacts = await prismaClient.contact.findMany({
@@ -64,60 +73,4 @@ identifyRouter.post("/identify", async (req: Request, res: Response) => {
     console.table(newContact);
     return res.json(responseBody);
   }
-
-    //to-do next requirement But what happens if there are no existing contacts against an incoming request?
-  // const contactRecords: Contact[] = [];
-  // let contactRecordByEmail = await prismaClient.contact.findFirst({where: {email: requestBody.email} });
-  // 
-  // if (contactRecordByEmail) {
-  //   let responseBody = parseRespone([contactRecordByEmail]);
-  //   console.table(responseBody);
-  //
-  // }
-  //
-  // let contactRecordByPhoneNumber = await prismaClient.contact.findFirst({where: {phoneNumber: String(requestBody.phoneNumber)} });
-  // const linkPrecedence: LinkPrecedence = contactRecordByEmail || contactRecordByPhoneNumber ? "SECONDARY" : "PRIMARY";
-  // let linkedId: number | null = null;
-  //
-  // switch (contactRecordByEmail?.linkPrecedence) {
-  //   case "PRIMARY": {
-  //     linkedId = contactRecordByEmail.id;
-  //     break;
-  //   }
-  //   case "SECONDARY": {
-  //     linkedId = contactRecordByEmail.linkedId;
-  //     break;
-  //   }
-  // }
-  //
-  // switch (contactRecordByPhoneNumber?.linkPrecedence) {
-  //   case "PRIMARY": {
-  //     linkedId = contactRecordByPhoneNumber.id;
-  //     break;
-  //   }
-  //   case "SECONDARY": {
-  //     linkedId = contactRecordByPhoneNumber.linkedId;
-  //     break;
-  //   }
-  // }
-  //
-  // let newContact = await prismaClient.contact.create({
-  //   data: {
-  //     email: requestBody.email,
-  //     phoneNumber: String(requestBody.phoneNumber),
-  //     linkPrecedence: linkPrecedence,
-  //     linkedId: linkedId,
-  //     createdAt: new Date(),
-  //     updatedAt: new Date()
-  //   }
-  // });
-  // 
-  // contactRecords.push(newContact);
-  //
-  // if (contactRecordByEmail) contactRecords.push(contactRecordByEmail);
-  // if (contactRecordByPhoneNumber) contactRecords.push(contactRecordByPhoneNumber);
-  // let responseBody = parseRespone(contactRecords);
-  // console.table(contactRecords);
-  // res.json(responseBody);
-
 });
