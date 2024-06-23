@@ -2,11 +2,12 @@ import { Router, Request, Response } from "express";
 import { Contact } from "@prisma/client";
 
 import { prismaClient } from "./../db";
-import { parseRespone } from "./../utils/parse-response"
+import { parseRespone } from "./../utils/parse-response";
+import { createContact, createSecondaryContact } from "./../utils/create-contact";
 
 interface RequestBody {
-  email?: string | null,
-  phoneNumber?: string | null
+  email: string | null,
+  phoneNumber: string | null
 }
 
 export const identifyRouter = Router();
@@ -57,17 +58,66 @@ identifyRouter.post("/identify", async (req: Request, res: Response) => {
     return res.json(responseBody);
   }
 
-  let newContact = await prismaClient.contact.create({
-    data: {
-      email: requestBody.email,
-      phoneNumber: String(requestBody.phoneNumber),
-      linkPrecedence: "PRIMARY",
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-  }); 
+  if (requestBody.email && requestBody.phoneNumber) {
+    let newContact = await createContact(prismaClient, requestBody.email, requestBody.phoneNumber);
+    let responseBody = parseRespone([newContact]);
+    console.table(newContact);
+    return res.json(responseBody);
+  }
 
-  let responseBody = parseRespone([newContact]);
-  console.table(newContact);
-  return res.json(responseBody);
+    //to-do next requirement But what happens if there are no existing contacts against an incoming request?
+  // const contactRecords: Contact[] = [];
+  // let contactRecordByEmail = await prismaClient.contact.findFirst({where: {email: requestBody.email} });
+  // 
+  // if (contactRecordByEmail) {
+  //   let responseBody = parseRespone([contactRecordByEmail]);
+  //   console.table(responseBody);
+  //
+  // }
+  //
+  // let contactRecordByPhoneNumber = await prismaClient.contact.findFirst({where: {phoneNumber: String(requestBody.phoneNumber)} });
+  // const linkPrecedence: LinkPrecedence = contactRecordByEmail || contactRecordByPhoneNumber ? "SECONDARY" : "PRIMARY";
+  // let linkedId: number | null = null;
+  //
+  // switch (contactRecordByEmail?.linkPrecedence) {
+  //   case "PRIMARY": {
+  //     linkedId = contactRecordByEmail.id;
+  //     break;
+  //   }
+  //   case "SECONDARY": {
+  //     linkedId = contactRecordByEmail.linkedId;
+  //     break;
+  //   }
+  // }
+  //
+  // switch (contactRecordByPhoneNumber?.linkPrecedence) {
+  //   case "PRIMARY": {
+  //     linkedId = contactRecordByPhoneNumber.id;
+  //     break;
+  //   }
+  //   case "SECONDARY": {
+  //     linkedId = contactRecordByPhoneNumber.linkedId;
+  //     break;
+  //   }
+  // }
+  //
+  // let newContact = await prismaClient.contact.create({
+  //   data: {
+  //     email: requestBody.email,
+  //     phoneNumber: String(requestBody.phoneNumber),
+  //     linkPrecedence: linkPrecedence,
+  //     linkedId: linkedId,
+  //     createdAt: new Date(),
+  //     updatedAt: new Date()
+  //   }
+  // });
+  // 
+  // contactRecords.push(newContact);
+  //
+  // if (contactRecordByEmail) contactRecords.push(contactRecordByEmail);
+  // if (contactRecordByPhoneNumber) contactRecords.push(contactRecordByPhoneNumber);
+  // let responseBody = parseRespone(contactRecords);
+  // console.table(contactRecords);
+  // res.json(responseBody);
+
 });
