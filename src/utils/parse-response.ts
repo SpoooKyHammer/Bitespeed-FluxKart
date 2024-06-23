@@ -1,16 +1,20 @@
-import { prismaClient } from "../db";
+import { Contact } from "@prisma/client"
 
-interface Contact {
-  id: number,
-  email: string,
-  phoneNumber: string,
-  linkPrecedence: "PRIMARY" | "SECONDARY"
+interface ResponseContact {
+  primarayContactId: number,
+  emails: string[],
+  phoneNumbers: string[],
+  secondaryContactIds: number[]
+}
+
+export interface ResponseBody {
+  contact: ResponseContact
 }
 
 /*
  * Parses an array of contacts into json response
  * */
-export function parseRespone(contacts: any) : object {
+export function parseRespone(contacts: Contact[]) : ResponseBody {
   let primarayContactId: number = 0;
   const emails: string[] = [];
   const phoneNumbers: string[] = [];
@@ -19,10 +23,18 @@ export function parseRespone(contacts: any) : object {
   for (let contact of contacts) {
     if (contact.linkPrecedence === "PRIMARY") primarayContactId = contact.id;
     else secondaryContactIds.push(contact.id);
-    emails.push(contact.email);
-    phoneNumbers.push(contact.phoneNumber);
-  }
 
+    let email = contact.email;
+    if (email && !emails.includes(email)) {
+      emails.push(email);
+    }
+
+    let phoneNumber = contact.phoneNumber;
+    if (phoneNumber && !phoneNumbers.includes(phoneNumber)) {
+      phoneNumbers.push(phoneNumber);
+    }
+  }
+  
   return {
     "contact": {
       "primarayContactId": primarayContactId,
