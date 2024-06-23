@@ -4,6 +4,7 @@ import { Contact, PrismaClient } from "@prisma/client";
 import { prismaClient } from "./../db";
 import { parseRespone } from "./../utils/parse-response";
 import { createContact, createSecondaryContact } from "./../utils/create-contact";
+import { getContacts } from "./../utils/get-contacts";
 
 interface RequestBody {
   email: string | null,
@@ -17,60 +18,42 @@ identifyRouter.post("/identify", async (req: Request, res: Response) => {
   const requestBody: RequestBody = req.body;
   requestBody.phoneNumber = requestBody.phoneNumber ? String(requestBody.phoneNumber) : null;
   
+  let contacts: Contact[];
+
   if (!requestBody.phoneNumber && !requestBody.email) {
     return res.status(400).json({
       "msg": "Bad request body, both arguments can not be null!"
     });
+  } else {
+    contacts = await getContacts(prismaClient, requestBody.email, requestBody.phoneNumber);
   }
-
-
-  let contactRecord = await prismaClient.contact.findFirst({
-    where: {
-      OR: [
-        { email: requestBody.email, phoneNumber: requestBody.phoneNumber },
-        { phoneNumber: requestBody.phoneNumber },
-        { email: requestBody.email }
-      ]
-    }
-  });
-
-  if (!contactRecord && requestBody.email && requestBody.phoneNumber) {
+  
+  if (contacts.length === 0 && requestBody.email && requestBody.phoneNumber) {
     let newContact = await createContact(prismaClient, requestBody.email, requestBody.phoneNumber);
     let responseBody = parseRespone([newContact]);
     console.table(newContact);
     return res.json(responseBody);
   }
 
-  contactRecord = contactRecord as Contact;
+  const primaryContact = contacts.find((c) => c.linkPrecedence === "PRIMARY") as Contact;
+  const requestedContact = contacts.find((c) => c.email === requestBody.email || c.phoneNumber === requestBody.phoneNumber) as Contact;
+  const isNewEmail = contacts.every((c) => c.email !== requestBody.email);
+  const isNewPhoneNumber = contacts.every((c) => c.phoneNumber !== requestBody.phoneNumber);
+
   let contactRecords: Contact[] = [];
 
   // check for new customer information
-  if (
-    (requestBody.email && requestBody.phoneNumber) && 
-    (contactRecord.email !== requestBody.email || contactRecord.phoneNumber !== requestBody.phoneNumber)
-  ) {
-    await createSecondaryContact(prismaClient, contactRecord, requestBody.email, requestBody.phoneNumber);
+  if ((isNewEmail || isNewPhoneNumber) && requestBody.email && requestBody.phoneNumber) {
+    let newContact = await createSecondaryContact(prismaClient, primaryContact, requestBody.email, requestBody.phoneNumber);
+    contacts.push(newContact);
   }
 
-  if (contactRecord.linkPrecedence === "PRIMARY") {
-    contactRecords.push(contactRecord);
-    let secondaryContacts = await prismaClient.contact.findMany({
-      where: { linkedId: contactRecord.id }
-    });
-    contactRecords = contactRecords.concat(secondaryContacts);
-  } else if (contactRecord.linkPrecedence === "SECONDARY" && contactRecord.linkedId){
-    //could be multiple secondary, get PRIMARY and all secondary
-    let primaryContact = await prismaClient.contact.findFirst({where: {id: contactRecord.linkedId}});
-    
-    if (primaryContact) contactRecords.push(primaryContact);
-    
-    let secondaryContacts = await prismaClient.contact.findMany({
-      where: { linkedId: primaryContact?.id }
-    });
-    contactRecords = contactRecords.concat(secondaryContacts);
+  for (let contact of contacts) {
+    if (contact.linkPrecedence === "PRIMARY") contactRecords.unshift(contact);
+    else contactRecords.push(contact);
   }
-  
+
   let responseBody = parseRespone(contactRecords);
-  console.table(contactRecords);
+  console.table(contacts);
   return res.json(responseBody); 
 });
