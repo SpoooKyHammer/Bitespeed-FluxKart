@@ -5,12 +5,12 @@
 
 ### Endpoints
 
-#### Get all contacts
+Get all contacts
 ```http
 GET /all
 ```
 
-#### Identify, create or link contact(s).
+Identify, create or link contact(s).
 ```http
 POST /identify
 ```
