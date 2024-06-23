@@ -3,14 +3,23 @@
 ## API Documentation
 - Base Url: `http://spookyhamme.me/api/v1`
 
-#### Endpoints
-- `/all` get all contacts.
-- `/identify` Identify, create or link contact(s).
-request body:
+### Endpoints
+
+#### Get all contacts
+```http
+GET /all
 ```
+
+#### Identify, create or link contact(s).
+```http
+POST /identify
+```
+
+request body:
+```js
 {
-    email: string,
-    phoneNumber: number
+  email: string | null,
+  phoneNumber: number | null
 }
 ```
 
