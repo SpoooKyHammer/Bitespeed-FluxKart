@@ -21,12 +21,13 @@ export async function createContact(prismaClient: PrismaClient, email: string, p
  * Creates a new Contact record in database and marks it as secondary contact and links it to it's primary contact record.
  * */
 export async function createSecondaryContact(prismaClient: PrismaClient, primaryContact: Contact, email: string, phoneNumber: string) : Promise<Contact> {
+  let linkedId = primaryContact.linkPrecedence === "PRIMARY" ? primaryContact.id : primaryContact.linkedId;
   let contactRecord = await prismaClient.contact.create({
     data: {
       email: email,
       phoneNumber: phoneNumber,
       linkPrecedence: "SECONDARY",
-      linkedId: primaryContact.id,
+      linkedId: linkedId,
       createdAt: new Date(),
       updatedAt: new Date()
     }
