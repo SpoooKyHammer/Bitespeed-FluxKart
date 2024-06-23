@@ -36,3 +36,20 @@ export async function createSecondaryContact(prismaClient: PrismaClient, primary
   return contactRecord;
 }
 
+
+/*
+ * Converts imposter contact to secondary contact
+ * (aka links imposter contact with respective contact)
+ * */
+export async function convertImposterContact(prismaClient: PrismaClient, contacts: Contact[]) : Promise<void> {
+  let primaryContact = contacts.find((c => c.linkPrecedence === "PRIMARY")) as Contact;
+  
+  for (let contact of contacts) {
+    if (contact.id === primaryContact.id) continue;
+
+    await prismaClient.contact.update({
+      where: { id: contact.id }, 
+      data: { linkPrecedence: "SECONDARY", linkedId: primaryContact.id }
+    });
+  }
+}

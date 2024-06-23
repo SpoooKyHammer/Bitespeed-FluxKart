@@ -1,10 +1,11 @@
 import { Router, Request, Response } from "express";
-import { Contact, PrismaClient } from "@prisma/client";
+import { Contact } from "@prisma/client";
 
 import { prismaClient } from "./../db";
 import { parseRespone } from "./../utils/parse-response";
-import { createContact, createSecondaryContact } from "./../utils/create-contact";
+import { createContact, createSecondaryContact, convertImposterContact } from "./../utils/contact-service";
 import { getContacts } from "./../utils/get-contacts";
+import { checkImposter } from "../utils/check-imposter";
 
 interface RequestBody {
   email: string | null,
@@ -25,18 +26,20 @@ identifyRouter.post("/identify", async (req: Request, res: Response) => {
       "msg": "Bad request body, both arguments can not be null!"
     });
   } else {
+    if (requestBody.email && requestBody.phoneNumber) {
+      let imposters = await checkImposter(prismaClient, requestBody.email, requestBody.phoneNumber);
+      if (imposters) await convertImposterContact(prismaClient, imposters);
+    }
     contacts = await getContacts(prismaClient, requestBody.email, requestBody.phoneNumber);
   }
   
   if (contacts.length === 0 && requestBody.email && requestBody.phoneNumber) {
     let newContact = await createContact(prismaClient, requestBody.email, requestBody.phoneNumber);
     let responseBody = parseRespone([newContact]);
-    console.table(newContact);
     return res.json(responseBody);
-  }
+   }
 
   const primaryContact = contacts.find((c) => c.linkPrecedence === "PRIMARY") as Contact;
-  const requestedContact = contacts.find((c) => c.email === requestBody.email || c.phoneNumber === requestBody.phoneNumber) as Contact;
   const isNewEmail = contacts.every((c) => c.email !== requestBody.email);
   const isNewPhoneNumber = contacts.every((c) => c.phoneNumber !== requestBody.phoneNumber);
 
@@ -54,6 +57,5 @@ identifyRouter.post("/identify", async (req: Request, res: Response) => {
   }
 
   let responseBody = parseRespone(contactRecords);
-  console.table(contacts);
   return res.json(responseBody); 
 });
