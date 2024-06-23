@@ -1,7 +1,8 @@
 import { Contact, PrismaClient } from "@prisma/client";
 
 /*
- * Gets all contacts i.e primary and secondary contacts by primaryContactId.*/
+ * Gets all contacts i.e primary and secondary contacts by primaryContactId.
+ * */
 async function getAllContacts(prismaClient: PrismaClient, primaryContactId: number) : Promise<Contact[]> {
   let contacts = await prismaClient.contact.findMany({
     where: {
@@ -15,7 +16,8 @@ async function getAllContacts(prismaClient: PrismaClient, primaryContactId: numb
 }
 
 /*
- * Gets all contact from database that matchs with either email or phoneNumber or both.*/
+ * Gets all contact from database that matchs with either email or phoneNumber or both.
+ * */
 export async function getContacts(prismaClient: PrismaClient, email: string | null, phoneNumber: string | null) : Promise<Contact[]> {
   let contact: Contact | null = null;
 
