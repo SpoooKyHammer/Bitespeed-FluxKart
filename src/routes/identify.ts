@@ -56,4 +56,18 @@ identifyRouter.post("/identify", async (req: Request, res: Response) => {
     console.table(contactRecords);
     return res.json(responseBody);
   }
+
+  let newContact = await prismaClient.contact.create({
+    data: {
+      email: requestBody.email,
+      phoneNumber: String(requestBody.phoneNumber),
+      linkPrecedence: "PRIMARY",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  }); 
+
+  let responseBody = parseRespone([newContact]);
+  console.table(newContact);
+  return res.json(responseBody);
 });
