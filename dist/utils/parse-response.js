@@ -14,8 +14,14 @@ function parseRespone(contacts) {
             primarayContactId = contact.id;
         else
             secondaryContactIds.push(contact.id);
-        emails.push(contact.email);
-        phoneNumbers.push(contact.phoneNumber);
+        let email = contact.email;
+        if (email && !emails.includes(email)) {
+            emails.push(email);
+        }
+        let phoneNumber = contact.phoneNumber;
+        if (phoneNumber && !phoneNumbers.includes(phoneNumber)) {
+            phoneNumbers.push(phoneNumber);
+        }
     }
     return {
         "contact": {
